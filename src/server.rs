@@ -59,7 +59,7 @@ use std::{
 ///
 /// Represents HTTP methods supported by the server.
 ///
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum HttpMethod {
     GET,
     POST,
@@ -151,7 +151,9 @@ impl Server {
     /// # Example
     ///
     /// ```rust, no_run
-    /// let server = Server::new("127.0.0.1:8080")?;
+    /// use http_rs::server::Server;
+    /// 
+    /// let server = Server::new("127.0.0.1:8080");
     /// ```
     ///
     pub fn new(addr: &str) -> io::Result<Server> {
@@ -279,6 +281,8 @@ impl Response {
     /// # Example
     ///
     /// ```rust, no_run
+    /// use http_rs::server::Response;
+    /// 
     /// let response = Response::new(200);
     /// ```
     ///
@@ -380,5 +384,100 @@ fn parse_url(raw_route: &str) -> (String, QueryParams) {
         (path.to_string(), query_params)
     } else {
         (raw_route.to_string(), HashMap::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+    use std::io::{self, BufReader, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::thread;
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct User {
+        id: u32,
+        name: String,
+    }
+
+    ///
+    /// Helper function to create a mock TCP stream with a given request string
+    ///
+    fn create_mock_stream(request: &str) -> io::Result<(TcpStream, TcpStream)> {
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let addr = listener.local_addr()?;
+
+        let client = TcpStream::connect(addr)?;
+        let (server, _) = listener.accept()?;
+
+        let request_owned = request.to_string();
+        let client_clone = client.try_clone()?;
+
+        thread::spawn(move || {
+            let mut client = client_clone;
+
+            client.write_all(request_owned.as_bytes()).unwrap();
+
+            // Flush after writing
+            client.flush().unwrap();
+        });
+
+        Ok((server.try_clone()?, server))
+    }
+
+    #[test]
+    fn test_request_parsing_get() {
+        let request = "GET /test?key=value HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        let (server, stream) = create_mock_stream(request).unwrap();
+
+        let buf = BufReader::new(stream);
+        let parsed_request = Request::new(buf).unwrap();
+
+        assert_eq!(parsed_request.method, HttpMethod::GET);
+        assert_eq!(parsed_request.route, "/test");
+        assert_eq!(
+            parsed_request.query_params.get("key"),
+            Some(&"value".to_string())
+        );
+        assert_eq!(
+            parsed_request.headers.get("Host"),
+            Some(&"localhost".to_string())
+        );
+        assert_eq!(parsed_request.body.len(), 0);
+
+        // Close the server stream
+        drop(server);
+    }
+
+    #[test]
+    fn test_parse_url() {
+        let (route, query_params) = parse_url("/path?key1=value1&key2=value2");
+
+        assert_eq!(route, "/path");
+        assert_eq!(query_params.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(query_params.get("key2"), Some(&"value2".to_string()));
+    }
+
+    #[test]
+    fn test_invalid_method() {
+        let request = "INVALID /path HTTP/1.1\r\n\r\n";
+        let (_, stream) = create_mock_stream(request).unwrap();
+
+        let buf = BufReader::new(stream);
+        let result = Request::new(buf);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_missing_content_length() {
+        let request = "POST /path HTTP/1.1\r\n\r\n";
+        let (_, stream) = create_mock_stream(request).unwrap();
+
+        let buf = BufReader::new(stream);
+        let parsed_request = Request::new(buf).unwrap();
+
+        assert_eq!(parsed_request.body.len(), 0);
     }
 }
