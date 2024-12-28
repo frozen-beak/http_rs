@@ -1,6 +1,6 @@
-use std::io::BufReader;
+use std::io::{self, BufReader};
 
-use http_rs::http::{HttpMethod, Request, Response, Server};
+use http_rs::server::{HttpMethod, Request, Response, Server};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -9,8 +9,9 @@ struct User {
     name: String,
 }
 
-fn main() {
-    let server = Server::new("127.0.0.1:6969");
+fn main() -> io::Result<()> {
+    let server = Server::new("127.0.0.1:6969")?;
+
     println!("Server running on http://127.0.0.1:6969");
 
     for stream in server.listen() {
@@ -31,6 +32,7 @@ fn main() {
                                     name: "Bob".to_string(),
                                 },
                             ];
+
                             Response::new(200).json(&users)
                         }
                         (HttpMethod::POST, "/users") => {
@@ -51,4 +53,6 @@ fn main() {
             Err(e) => eprintln!("Connection failed: {}", e),
         }
     }
+
+    Ok(())
 }
