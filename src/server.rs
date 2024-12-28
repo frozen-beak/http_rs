@@ -65,10 +65,14 @@ pub enum HttpMethod {
     POST,
 }
 
+///
 /// Alias for HTTP headers as KV pairs.
+///
 pub type Headers = HashMap<String, String>;
 
+///
 /// Alias for URL query params as KV pairs.
+///
 pub type QueryParams = HashMap<String, String>;
 
 ///
@@ -171,11 +175,11 @@ impl Server {
 
 impl Request {
     ///
-    /// Creates a new [Request] instance by parsing an incoming TCP stream yielded by [Server::listen]
+    /// Creates a new [Request] instance by parsing an incoming [TcpStream] yielded by [Server::listen]
     ///
     /// # Arguments
     ///
-    /// * `stream` -> A buffered TCP stream containing the [Request]
+    /// * `stream` -> A buffered [TcpStream] containing the [Request]
     ///
     /// # Returns
     ///
@@ -239,7 +243,7 @@ impl Request {
     }
 
     ///
-    /// Reads a single line from the TCP stream.
+    /// Reads a single line from the [TcpStream].
     ///
     fn read_line(stream: &mut BufReader<TcpStream>) -> io::Result<String> {
         let mut line = String::new();
@@ -253,7 +257,7 @@ impl Request {
     ///
     /// # Parameters
     ///
-    /// * `T` -> The type to deserialize the `JSON` into. Must implement Deserialize.
+    /// * `T` -> The type to deserialize the `JSON` into. **Must implement Deserialize.**
     ///
     /// # Returns
     ///
