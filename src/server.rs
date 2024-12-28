@@ -112,7 +112,7 @@ impl Request {
 impl Response {
     pub fn new(status: u16) -> Response {
         let mut headers = Headers::new();
-        
+
         headers.insert("Content-Type".to_string(), "application/json".to_string());
 
         Response {
