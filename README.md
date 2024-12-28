@@ -1,4 +1,4 @@
-# 🦀 HTTP-RS
+# 🦀 http_rs
 
 A lightweight and simple HTTP server implementation in Rust
 
