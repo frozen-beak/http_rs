@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
+        "eprintln",
+        "println",
         "serde",
         "urlencoding"
     ]
